@@ -12,7 +12,7 @@ void main() async {
 }
 
 class LoginApp extends StatelessWidget {
-  const LoginApp({super.key});
+  const LoginApp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +30,7 @@ class LoginPage extends StatelessWidget {
   final TextEditingController passwordController = TextEditingController();
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  LoginPage({super.key});
+  LoginPage({Key? key}) : super(key: key);
 
   Future<void> login(BuildContext context) async {
     String email = emailController.text;
@@ -117,7 +117,7 @@ class LoginPage extends StatelessWidget {
 class ProfilePage extends StatefulWidget {
   final User user;
 
-  const ProfilePage({super.key, required this.user});
+  const ProfilePage({required this.user, Key? key}) : super(key: key);
 
   @override
   _ProfilePageState createState() => _ProfilePageState();
@@ -300,10 +300,10 @@ class _ProfilePageState extends State<ProfilePage> {
                   labelText: 'Shift Details',
                 ),
               ),
-              const SizedBox(height: 16.0),
+              const SizedBox(height: 24.0),
               ElevatedButton(
-                onPressed: () => saveProfileData(),
-                child: const Text('Save Profile'),
+                onPressed: saveProfileData,
+                child: const Text('Save'),
               ),
             ],
           ),
