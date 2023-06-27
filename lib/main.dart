@@ -8,21 +8,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
-  runApp(const LoginApp());
-}
-
-class LoginApp extends StatelessWidget {
-  const LoginApp({Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Login',
-      theme: ThemeData.light(),
-      darkTheme: ThemeData.dark(),
-      home: LoginPage(),
-    );
-  }
+  runApp(LoginPage());
 }
 
 class LoginPage extends StatelessWidget {
@@ -37,7 +23,8 @@ class LoginPage extends StatelessWidget {
     String password = passwordController.text;
 
     try {
-      UserCredential userCredential = await _auth.signInWithEmailAndPassword(
+      UserCredential userCredential =
+          await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
@@ -53,6 +40,40 @@ class LoginPage extends StatelessWidget {
         context: context,
         builder: (context) => AlertDialog(
           title: const Text('Login Failed'),
+          content: Text(e.toString()),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  Future<void> signUp(BuildContext context) async {
+    String email = emailController.text;
+    String password = passwordController.text;
+
+    try {
+      UserCredential userCredential =
+          await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ProfilePage(user: userCredential.user!),
+        ),
+      );
+    } catch (e) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Sign Up Failed'),
           content: Text(e.toString()),
           actions: [
             TextButton(
@@ -106,6 +127,11 @@ class LoginPage extends StatelessWidget {
                 onPressed: () => login(context),
                 child: const Text('Login'),
               ),
+              const SizedBox(height: 8.0),
+              ElevatedButton(
+                onPressed: () => signUp(context),
+                child: const Text('Sign Up'),
+              ),
             ],
           ),
         ),
@@ -113,6 +139,7 @@ class LoginPage extends StatelessWidget {
     );
   }
 }
+
 
 class ProfilePage extends StatefulWidget {
   final User user;
@@ -134,6 +161,7 @@ class _ProfilePageState extends State<ProfilePage> {
   final TextEditingController shiftdetailsController = TextEditingController();
   final ImagePicker _picker = ImagePicker();
   ImageProvider? profileImage;
+  bool isLoading = true;
 
   @override
   void initState() {
@@ -143,7 +171,8 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Future<void> loadProfileData() async {
     final userId = widget.user.uid;
-    final profileDoc = await FirebaseFirestore.instance.collection('profiles').doc(userId).get();
+    final profileDoc =
+        await FirebaseFirestore.instance.collection('profiles').doc(userId).get();
     if (profileDoc.exists) {
       final data = profileDoc.data() as Map<String, dynamic>;
       setState(() {
@@ -155,12 +184,18 @@ class _ProfilePageState extends State<ProfilePage> {
         genderController.text = data['gender'];
         dateOfBirthController.text = data['dateOfBirth'];
         shiftdetailsController.text = data['shiftdetails'];
+        isLoading = false;
+      });
+    } else {
+      setState(() {
+        isLoading = false;
       });
     }
   }
 
   Future<void> pickImage() async {
-    final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+    final XFile? pickedFile =
+        await _picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
       final File image = File(pickedFile.path);
       setState(() {
@@ -173,7 +208,10 @@ class _ProfilePageState extends State<ProfilePage> {
     final userId = widget.user.uid;
 
     try {
-      await FirebaseFirestore.instance.collection('profiles').doc(userId).set({
+      await FirebaseFirestore.instance
+          .collection('profiles')
+          .doc(userId)
+          .set({
         'name': nameController.text,
         'role': roleController.text,
         'department': departmentController.text,
@@ -202,7 +240,8 @@ class _ProfilePageState extends State<ProfilePage> {
         context: context,
         builder: (context) => AlertDialog(
           title: const Text('Error'),
-          content: const Text('Failed to save profile. Please try again.'),
+          content:
+              const Text('Failed to save profile. Please try again.'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
@@ -221,94 +260,96 @@ class _ProfilePageState extends State<ProfilePage> {
       appBar: AppBar(
         title: const Center(child: Text('Your Profile')),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: 16.0),
-              InkWell(
-                onTap: pickImage,
-                child: CircleAvatar(
-                  radius: 50,
-                  backgroundImage: profileImage,
-                  child: profileImage == null
-                      ? Icon(
-                          Icons.person,
-                          size: 100,
-                          color: Theme.of(context).primaryColor,
-                        )
-                      : null,
+      body: isLoading
+          ? Center(child: CircularProgressIndicator())
+          : Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const SizedBox(height: 16.0),
+                    InkWell(
+                      onTap: pickImage,
+                      child: CircleAvatar(
+                        radius: 50,
+                        backgroundImage: profileImage,
+                        child: profileImage == null
+                            ? Icon(
+                                Icons.person,
+                                size: 100,
+                                color: Theme.of(context).primaryColor,
+                              )
+                            : null,
+                      ),
+                    ),
+                    const SizedBox(height: 16.0),
+                    TextFormField(
+                      controller: nameController,
+                      decoration: const InputDecoration(
+                        labelText: 'Name',
+                      ),
+                    ),
+                    const SizedBox(height: 8.0),
+                    TextFormField(
+                      controller: roleController,
+                      decoration: const InputDecoration(
+                        labelText: 'Role',
+                      ),
+                    ),
+                    const SizedBox(height: 8.0),
+                    TextFormField(
+                      controller: departmentController,
+                      decoration: const InputDecoration(
+                        labelText: 'Department',
+                      ),
+                    ),
+                    const SizedBox(height: 8.0),
+                    TextFormField(
+                      controller: emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: const InputDecoration(
+                        labelText: 'Email',
+                      ),
+                    ),
+                    const SizedBox(height: 8.0),
+                    TextFormField(
+                      controller: phoneNumberController,
+                      keyboardType: TextInputType.phone,
+                      decoration: const InputDecoration(
+                        labelText: 'Phone Number',
+                      ),
+                    ),
+                    const SizedBox(height: 8.0),
+                    TextFormField(
+                      controller: genderController,
+                      decoration: const InputDecoration(
+                        labelText: 'Gender',
+                      ),
+                    ),
+                    const SizedBox(height: 8.0),
+                    TextFormField(
+                      controller: dateOfBirthController,
+                      decoration: const InputDecoration(
+                        labelText: 'Date of Birth',
+                      ),
+                    ),
+                    const SizedBox(height: 8.0),
+                    TextFormField(
+                      controller: shiftdetailsController,
+                      decoration: const InputDecoration(
+                        labelText: 'Shift Details',
+                      ),
+                    ),
+                    const SizedBox(height: 24.0),
+                    ElevatedButton(
+                      onPressed: saveProfileData,
+                      child: const Text('Save'),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 16.0),
-              TextFormField(
-                controller: nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Name',
-                ),
-              ),
-              const SizedBox(height: 8.0),
-              TextFormField(
-                controller: roleController,
-                decoration: const InputDecoration(
-                  labelText: 'Role',
-                ),
-              ),
-              const SizedBox(height: 8.0),
-              TextFormField(
-                controller: departmentController,
-                decoration: const InputDecoration(
-                  labelText: 'Department',
-                ),
-              ),
-              const SizedBox(height: 8.0),
-              TextFormField(
-                controller: emailController,
-                keyboardType: TextInputType.emailAddress,
-                decoration: const InputDecoration(
-                  labelText: 'Email',
-                ),
-              ),
-              const SizedBox(height: 8.0),
-              TextFormField(
-                controller: phoneNumberController,
-                keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(
-                  labelText: 'Phone Number',
-                ),
-              ),
-              const SizedBox(height: 8.0),
-              TextFormField(
-                controller: genderController,
-                decoration: const InputDecoration(
-                  labelText: 'Gender',
-                ),
-              ),
-              const SizedBox(height: 8.0),
-              TextFormField(
-                controller: dateOfBirthController,
-                decoration: const InputDecoration(
-                  labelText: 'Date of Birth',
-                ),
-              ),
-              const SizedBox(height: 8.0),
-              TextFormField(
-                controller: shiftdetailsController,
-                decoration: const InputDecoration(
-                  labelText: 'Shift Details',
-                ),
-              ),
-              const SizedBox(height: 24.0),
-              ElevatedButton(
-                onPressed: saveProfileData,
-                child: const Text('Save'),
-              ),
-            ],
-          ),
-        ),
-      ),
+            ),
     );
   }
 }
