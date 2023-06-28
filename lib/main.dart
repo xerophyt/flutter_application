@@ -4,27 +4,44 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/services.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
-  runApp(LoginPage());
+  runApp(MyApp());
 }
 
-class LoginPage extends StatelessWidget {
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Login',
+      theme: ThemeData.dark(),
+      home: LoginPage(),
+    );
+  }
+}
+
+class LoginPage extends StatefulWidget {
+  LoginPage({Key? key}) : super(key: key);
+
+  @override
+  _LoginPageState createState() => _LoginPageState();
+}
+
+class _LoginPageState extends State<LoginPage> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   final FirebaseAuth _auth = FirebaseAuth.instance;
-
-  LoginPage({Key? key}) : super(key: key);
+  bool showPassword = false;
 
   Future<void> login(BuildContext context) async {
     String email = emailController.text;
     String password = passwordController.text;
 
     try {
-      UserCredential userCredential =
-          await _auth.signInWithEmailAndPassword(
+      UserCredential userCredential = await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
@@ -57,8 +74,7 @@ class LoginPage extends StatelessWidget {
     String password = passwordController.text;
 
     try {
-      UserCredential userCredential =
-          await _auth.createUserWithEmailAndPassword(
+      UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
@@ -116,10 +132,21 @@ class LoginPage extends StatelessWidget {
               const SizedBox(height: 16.0),
               TextFormField(
                 controller: passwordController,
-                obscureText: true,
-                decoration: const InputDecoration(
+                obscureText: !showPassword,
+                decoration: InputDecoration(
                   labelText: 'Password',
                   prefixIcon: Icon(Icons.lock),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      showPassword ? Icons.visibility_off : Icons.visibility,
+                      color: Colors.grey,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        showPassword = !showPassword;
+                      });
+                    },
+                  ),
                 ),
               ),
               const SizedBox(height: 24.0),
@@ -139,7 +166,6 @@ class LoginPage extends StatelessWidget {
     );
   }
 }
-
 
 class ProfilePage extends StatefulWidget {
   final User user;
@@ -240,8 +266,7 @@ class _ProfilePageState extends State<ProfilePage> {
         context: context,
         builder: (context) => AlertDialog(
           title: const Text('Error'),
-          content:
-              const Text('Failed to save profile. Please try again.'),
+          content: const Text('Failed to save profile. Please try again.'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
@@ -254,100 +279,159 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
+  Future<void> logout() async{
+    await FirebaseAuth.instance.signOut();
+    Navigator.pop(context);
+
+        showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Logged Out'),
+        content: const Text('Logged out successfully.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  bool validatePhoneNumber(String value) {
+    // Validate that the phone number has exactly 10 digits
+    if (value.length != 10) {
+      return false;
+    }
+    return true;
+  }
+
+  List<String> genderOptions = ['Male', 'Female', 'Other'];
+  String? selectedGender;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Center(child: Text('Your Profile')),
+        automaticallyImplyLeading: false,
+        actions: [
+          IconButton(
+            onPressed: () => logout(), 
+            icon: Icon(Icons.logout),
+          ),  
+        ],
       ),
       body: isLoading
-          ? Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator())
           : Padding(
               padding: const EdgeInsets.all(16.0),
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const SizedBox(height: 16.0),
-                    InkWell(
-                      onTap: pickImage,
-                      child: CircleAvatar(
-                        radius: 50,
-                        backgroundImage: profileImage,
-                        child: profileImage == null
-                            ? Icon(
-                                Icons.person,
-                                size: 100,
-                                color: Theme.of(context).primaryColor,
-                              )
-                            : null,
-                      ),
+              child: ListView(
+                children: [
+                  GestureDetector(
+                    onTap: pickImage,
+                    child: CircleAvatar(
+                      radius: 80,
+                      backgroundImage: profileImage,
+                      child: profileImage == null
+                          ? const Icon(Icons.person, size: 80)
+                          : null,
                     ),
-                    const SizedBox(height: 16.0),
-                    TextFormField(
-                      controller: nameController,
-                      decoration: const InputDecoration(
-                        labelText: 'Name',
-                      ),
+                  ),
+                  const SizedBox(height: 16.0),
+                  TextFormField(
+                    controller: nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Name',
+                      prefixIcon: Icon(Icons.person),
                     ),
-                    const SizedBox(height: 8.0),
-                    TextFormField(
-                      controller: roleController,
-                      decoration: const InputDecoration(
-                        labelText: 'Role',
-                      ),
+                  ),
+                  const SizedBox(height: 16.0),
+                  TextFormField(
+                    controller: roleController,
+                    decoration: const InputDecoration(
+                      labelText: 'Role',
+                      prefixIcon: Icon(Icons.work),
                     ),
-                    const SizedBox(height: 8.0),
-                    TextFormField(
-                      controller: departmentController,
-                      decoration: const InputDecoration(
-                        labelText: 'Department',
-                      ),
+                  ),
+                  const SizedBox(height: 16.0),
+                  TextFormField(
+                    controller: departmentController,
+                    decoration: const InputDecoration(
+                      labelText: 'Department',
+                      prefixIcon: Icon(Icons.location_city),
                     ),
-                    const SizedBox(height: 8.0),
-                    TextFormField(
-                      controller: emailController,
-                      keyboardType: TextInputType.emailAddress,
-                      decoration: const InputDecoration(
-                        labelText: 'Email',
-                      ),
+                  ),
+                  const SizedBox(height: 16.0),
+                  TextFormField(
+                    controller: emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: const InputDecoration(
+                      labelText: 'Email',
+                      prefixIcon: Icon(Icons.email),
                     ),
-                    const SizedBox(height: 8.0),
-                    TextFormField(
-                      controller: phoneNumberController,
-                      keyboardType: TextInputType.phone,
-                      decoration: const InputDecoration(
-                        labelText: 'Phone Number',
-                      ),
+                  ),
+                  const SizedBox(height: 16.0),
+                  TextFormField(
+                    controller: phoneNumberController,
+                    keyboardType: TextInputType.phone,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(10),
+                    ],
+                    decoration: const InputDecoration(
+                      labelText: 'Phone Number',
+                      prefixIcon: Icon(Icons.phone),
                     ),
-                    const SizedBox(height: 8.0),
-                    TextFormField(
-                      controller: genderController,
-                      decoration: const InputDecoration(
-                        labelText: 'Gender',
-                      ),
+                    validator: (value) {
+                      if (!validatePhoneNumber(value ?? '')) {
+                        return 'Invalid Phone Number';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16.0),
+                  DropdownButtonFormField<String>(
+                    value: selectedGender,
+                    items: genderOptions.map((String value) {
+                      return DropdownMenuItem<String>(
+                        value: value,
+                        child: Text(value),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        selectedGender = value;
+                      });
+                    },
+                    decoration: const InputDecoration(
+                      labelText: 'Gender',
+                      prefixIcon: Icon(Icons.person),
                     ),
-                    const SizedBox(height: 8.0),
-                    TextFormField(
-                      controller: dateOfBirthController,
-                      decoration: const InputDecoration(
-                        labelText: 'Date of Birth',
-                      ),
+                  ),
+                  const SizedBox(height: 16.0),
+                  TextFormField(
+                    controller: dateOfBirthController,
+                    keyboardType: TextInputType.datetime,
+                    decoration: const InputDecoration(
+                      labelText: 'Date of Birth',
+                      prefixIcon: Icon(Icons.calendar_today),
                     ),
-                    const SizedBox(height: 8.0),
-                    TextFormField(
-                      controller: shiftdetailsController,
-                      decoration: const InputDecoration(
-                        labelText: 'Shift Details',
-                      ),
+                  ),
+                  const SizedBox(height: 16.0),
+                  TextFormField(
+                    controller: shiftdetailsController,
+                    decoration: const InputDecoration(
+                      labelText: 'Shift Details',
+                      prefixIcon: Icon(Icons.schedule),
                     ),
-                    const SizedBox(height: 24.0),
-                    ElevatedButton(
-                      onPressed: saveProfileData,
-                      child: const Text('Save'),
-                    ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 24.0),
+                  ElevatedButton(
+                    onPressed: saveProfileData,
+                    child: const Text('Save Profile'),
+                  ),
+                ],
               ),
             ),
     );
