@@ -19,7 +19,10 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Login',
-      theme: ThemeData.dark(),
+      theme: ThemeData(
+        primaryColor: Colors.blue, // Customize the primary color
+        fontFamily: 'Roboto', // Set the default font family
+      ),
       home: LoginPage(),
     );
   }
@@ -37,10 +40,25 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController passwordController = TextEditingController();
   final FirebaseAuth _auth = FirebaseAuth.instance;
   bool showPassword = false;
+  String errorMessage = '';
+
+  bool _isValidEmail(String email) {
+    final emailRegExp = RegExp(
+      r'^[\w-]+(?:\.[\w-]+)*@gmail\.com$',
+    );
+    return emailRegExp.hasMatch(email);
+  }
 
   Future<void> login(BuildContext context) async {
     String email = emailController.text;
     String password = passwordController.text;
+
+    if (!_isValidEmail(email)) {
+      setState(() {
+        errorMessage = 'Please enter a valid Gmail address.';
+      });
+      return;
+    }
 
     try {
       UserCredential userCredential = await _auth.signInWithEmailAndPassword(
@@ -55,25 +73,22 @@ class _LoginPageState extends State<LoginPage> {
         ),
       );
     } catch (e) {
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Login Failed'),
-          content: Text(e.toString()),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('OK'),
-            ),
-          ],
-        ),
-      );
+      setState(() {
+        errorMessage = 'Login failed: ${e.toString()}';
+      });
     }
   }
 
   Future<void> signUp(BuildContext context) async {
     String email = emailController.text;
     String password = passwordController.text;
+
+    if (!_isValidEmail(email)) {
+      setState(() {
+        errorMessage = 'Please enter a valid Gmail address.';
+      });
+      return;
+    }
 
     try {
       UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
@@ -88,19 +103,9 @@ class _LoginPageState extends State<LoginPage> {
         ),
       );
     } catch (e) {
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Sign Up Failed'),
-          content: Text(e.toString()),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('OK'),
-            ),
-          ],
-        ),
-      );
+      setState(() {
+        errorMessage = 'Sign up failed: ${e.toString()}';
+      });
     }
   }
 
@@ -111,33 +116,52 @@ class _LoginPageState extends State<LoginPage> {
         title: const Text('Login'),
         centerTitle: true,
       ),
-      body: Padding(
+      body: Container(
+        decoration: BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('lib/assets/background.webp'),
+            fit: BoxFit.cover,
+          ),
+        ),
         padding: const EdgeInsets.all(16.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
-              Icons.android,
-              size: 100,
-              color: Colors.blue,
+            CircleAvatar(
+              radius: 50,
+              backgroundColor: Colors.white,
+              child: Icon(
+                Icons.android,
+                size: 50,
+                color: Colors.blue,
+              ),
             ),
             const SizedBox(height: 24.0),
             TextFormField(
               controller: emailController,
               keyboardType: TextInputType.emailAddress,
+              style: TextStyle(color: Colors.white), // Customize text color
               decoration: InputDecoration(
                 labelText: 'Email',
-                prefixIcon: const Icon(Icons.email),
-                border: OutlineInputBorder(),
+                labelStyle: TextStyle(color: Colors.white), // Customize label text color
+                prefixIcon: Icon(Icons.email, color: Colors.white), // Customize icon color
+                filled: true,
+                fillColor: Colors.black.withOpacity(0.3), // Customize background color
+                border: OutlineInputBorder(
+                  borderSide: BorderSide.none,
+                  borderRadius: BorderRadius.circular(8.0),
+                ),
               ),
             ),
             const SizedBox(height: 16.0),
             TextFormField(
               controller: passwordController,
               obscureText: !showPassword,
+              style: TextStyle(color: Colors.white), // Customize text color
               decoration: InputDecoration(
                 labelText: 'Password',
-                prefixIcon: const Icon(Icons.lock),
+                labelStyle: TextStyle(color: Colors.white), // Customize label text color
+                prefixIcon: Icon(Icons.lock, color: Colors.white), // Customize icon color
                 suffixIcon: IconButton(
                   icon: Icon(
                     showPassword ? Icons.visibility_off : Icons.visibility,
@@ -149,17 +173,55 @@ class _LoginPageState extends State<LoginPage> {
                     });
                   },
                 ),
-                border: OutlineInputBorder(),
+                filled: true,
+                fillColor: Colors.black.withOpacity(0.3), // Customize background color
+                border: OutlineInputBorder(
+                  borderSide: BorderSide.none,
+                  borderRadius: BorderRadius.circular(8.0),
+                ),
               ),
             ),
+            if (errorMessage.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: Text(
+                  errorMessage,
+                  style: TextStyle(color: Colors.red),
+                ),
+              ),
             const SizedBox(height: 24.0),
             ElevatedButton(
-              onPressed: () => login(context),
+              onPressed: () {
+                setState(() {
+                  errorMessage = '';
+                });
+                login(context);
+              },
+              style: ElevatedButton.styleFrom(
+                primary: Colors.blue, // Customize button background color
+                onPrimary: Colors.white, // Customize button text color
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8.0),
+                ),
+              ),
               child: const Text('Login'),
             ),
             const SizedBox(height: 8.0),
             ElevatedButton(
-              onPressed: () => signUp(context),
+              onPressed: () {
+                setState(() {
+                  errorMessage = '';
+                });
+                signUp(context);
+              },
+              style: ElevatedButton.styleFrom(
+                primary: Colors.white, // Customize button background color
+                onPrimary: Colors.blue, // Customize button text color
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8.0),
+                  side: BorderSide(color: Colors.blue), // Add border to the button
+                ),
+              ),
               child: const Text('Sign Up'),
             ),
           ],
@@ -191,6 +253,7 @@ class _ProfilePageState extends State<ProfilePage> {
   ImageProvider? profileImage;
   bool isLoading = true;
   DateTime? selectedDate;
+  bool isFormComplete = false;
 
   @override
   void initState() {
@@ -198,44 +261,44 @@ class _ProfilePageState extends State<ProfilePage> {
     loadProfileData();
   }
 
-Future<void> loadProfileData() async {
-  final userId = widget.user.uid;
-  final profileDoc = await FirebaseFirestore.instance.collection('profiles').doc(userId).get();
-  if (profileDoc.exists) {
-    final data = profileDoc.data() as Map<String, dynamic>;
-    setState(() {
-      nameController.text = data['name'];
-      roleController.text = data['role'];
-      departmentController.text = data['department'];
-      emailController.text = data['email'];
-      phoneNumberController.text = data['phoneNumber'];
-      genderController.text = data['gender'];
-      selectedGender = data['gender'];
-      shiftdetailsController.text = data['shiftdetails'];
+  Future<void> loadProfileData() async {
+    final userId = widget.user.uid;
+    final profileDoc =
+        await FirebaseFirestore.instance.collection('profiles').doc(userId).get();
+    if (profileDoc.exists) {
+      final data = profileDoc.data() as Map<String, dynamic>;
+      setState(() {
+        nameController.text = data['name'];
+        roleController.text = data['role'];
+        departmentController.text = data['department'];
+        emailController.text = data['email'];
+        phoneNumberController.text = data['phoneNumber'];
+        genderController.text = data['gender'];
+        selectedGender = data['gender'];
+        shiftdetailsController.text = data['shiftdetails'];
 
-      final dateOfBirth = data['dateOfBirth'];
-      if (dateOfBirth != null && dateOfBirth.isNotEmpty) {
-        selectedDate = DateTime.tryParse(dateOfBirth);
-        dateOfBirthController.text = selectedDate != null
-            ? DateFormat('dd-MM-yyyy').format(selectedDate!)
-            : '';
-      } else {
-        selectedDate = null;
-        dateOfBirthController.text = '';
-      }
+        final dateOfBirth = data['dateOfBirth'];
+        if (dateOfBirth != null && dateOfBirth.isNotEmpty) {
+          selectedDate = DateTime.tryParse(dateOfBirth);
+          dateOfBirthController.text = selectedDate != null
+              ? DateFormat('dd-MM-yyyy').format(selectedDate!)
+              : '';
+        } else {
+          selectedDate = null;
+          dateOfBirthController.text = '';
+        }
 
-      isLoading = false;
-    });
-  } else {
-    setState(() {
-      isLoading = false;
-    });
+        isLoading = false;
+      });
+    } else {
+      setState(() {
+        isLoading = false;
+      });
+    }
   }
-}
 
   Future<void> pickImage() async {
-    final XFile? pickedFile =
-        await _picker.pickImage(source: ImageSource.gallery);
+    final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
       final File image = File(pickedFile.path);
       setState(() {
@@ -244,11 +307,42 @@ Future<void> loadProfileData() async {
     }
   }
 
-Future<void> saveProfileData() async {
-  final userId = widget.user.uid;
-  final email = emailController.text.trim();
-  final phoneNumber = phoneNumberController.text;
+  Future<void> saveProfileData() async {
+    final userId = widget.user.uid;
+    final name = nameController.text.trim();
+    final role = roleController.text.trim();
+    final department = departmentController.text.trim();
+    final email = emailController.text.trim();
+    final phoneNumber = phoneNumberController.text.trim();
+    final gender = genderController.text.trim();
+    final shiftdetails = shiftdetailsController.text.trim();
 
+    // Form validation check
+    if (name.isEmpty ||
+        role.isEmpty ||
+        department.isEmpty ||
+        email.isEmpty ||
+        phoneNumber.isEmpty ||
+        gender.isEmpty ||
+        selectedDate == null ||
+        shiftdetails.isEmpty) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Incomplete Form'),
+          content: const Text('Please fill in all the fields.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    // Email validation check
     if (!_isValidEmail(email)) {
       showDialog(
         context: context,
@@ -266,68 +360,68 @@ Future<void> saveProfileData() async {
       return;
     }
 
-  if (!validatePhoneNumber(phoneNumber)) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Invalid Phone Number'),
-        content: const Text('Please enter a valid 10-digit phone number.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
-    return;
+    // Phone number validation check
+    if (!validatePhoneNumber(phoneNumber)) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Invalid Phone Number'),
+          content: const Text('Please enter a valid 10-digit phone number.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    try {
+      await FirebaseFirestore.instance.collection('profiles').doc(userId).set({
+        'name': name,
+        'role': role,
+        'department': department,
+        'email': email,
+        'phoneNumber': phoneNumber,
+        'gender': gender,
+        'dateOfBirth': selectedDate!.toIso8601String(),
+        'shiftdetails': shiftdetails,
+      });
+
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Profile Saved'),
+          content: const Text('Your profile has been saved successfully.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Error'),
+          content: const Text('Failed to save profile. Please try again.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      print('Error saving profile data: $e');
+    }
   }
 
-  try {
-    await FirebaseFirestore.instance.collection('profiles').doc(userId).set({
-      'name': nameController.text,
-      'role': roleController.text,
-      'department': departmentController.text,
-      'email': emailController.text,
-      'phoneNumber': phoneNumber,
-      'gender': genderController.text,
-      'dateOfBirth': selectedDate != null ? selectedDate!.toIso8601String() : '',
-      'shiftdetails': shiftdetailsController.text,
-    });
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Profile Saved'),
-        content: const Text('Your profile has been saved successfully.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
-  } catch (e) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Error'),
-        content: const Text('Failed to save profile. Please try again.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
-    print('Error saving profile data: $e');
-  }
-}
-
-
-  Future<void> logout() async{
+  Future<void> logout() async {
     await FirebaseAuth.instance.signOut();
     Navigator.pop(context);
 
@@ -346,9 +440,9 @@ Future<void> saveProfileData() async {
     );
   }
 
-    bool _isValidEmail(String email) {
+  bool _isValidEmail(String email) {
     final emailRegExp = RegExp(
-      r'^[\w-]+(?:\.[\w-]+)*@(?:[\w-]+\.)+[a-zA-Z]{2,7}$',
+      r'^[\w-]+(?:\.[\w-]+)*@gmail\.com$',
     );
     return emailRegExp.hasMatch(email);
   }
@@ -368,12 +462,12 @@ Future<void> saveProfileData() async {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Center(child: Text('Your Profile')),
-        automaticallyImplyLeading: false,
+        title: const Text('Your Profile'),
+        centerTitle: true,
         actions: [
           IconButton(
-            onPressed: () => logout(),
-            icon: Icon(Icons.logout),
+            onPressed: logout,
+            icon: const Icon(Icons.logout),
           ),
         ],
       ),
@@ -438,32 +532,26 @@ Future<void> saveProfileData() async {
                       labelText: 'Phone Number',
                       prefixIcon: Icon(Icons.phone),
                     ),
-                    validator: (value) {
-                      if (!validatePhoneNumber(value ?? '')) {
-                        return 'Invalid Phone Number';
-                      }
-                      return null;
-                    },
                   ),
-                const SizedBox(height: 16.0),
-                DropdownButtonFormField<String>(
-                value: selectedGender,
-                items: genderOptions.map((String value) {
-                  return DropdownMenuItem<String>(
-                    value: value,
-                    child: Text(value),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    selectedGender = value;
-                  });
-                },
-                decoration: const InputDecoration(
-                  labelText: 'Gender',
-                  prefixIcon: Icon(Icons.person),
-                ),
-              ),
+                  const SizedBox(height: 16.0),
+                  DropdownButtonFormField<String>(
+                    value: selectedGender,
+                    items: genderOptions.map((String value) {
+                      return DropdownMenuItem<String>(
+                        value: value,
+                        child: Text(value),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        selectedGender = value;
+                      });
+                    },
+                    decoration: const InputDecoration(
+                      labelText: 'Gender',
+                      prefixIcon: Icon(Icons.person),
+                    ),
+                  ),
                   const SizedBox(height: 16.0),
                   TextFormField(
                     controller: dateOfBirthController,
@@ -497,14 +585,14 @@ Future<void> saveProfileData() async {
   }
 
   Future<void> _selectedDate(BuildContext context) async {
-    final DateTime?  picked = await showDatePicker(
-      context: context, 
-      initialDate: selectedDate ?? DateTime.now(), 
-      firstDate: DateTime(1900), 
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: selectedDate ?? DateTime.now(),
+      firstDate: DateTime(1900),
       lastDate: DateTime.now(),
     );
 
-    if(picked != null && picked !=selectedDate){
+    if (picked != null && picked != selectedDate) {
       setState(() {
         selectedDate = picked;
         dateOfBirthController.text = DateFormat('dd-MM-yyyy').format(picked);
