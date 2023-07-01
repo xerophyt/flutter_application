@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -253,6 +254,7 @@ class _ProfilePageState extends State<ProfilePage> {
   ImageProvider? profileImage;
   bool isLoading = true;
   DateTime? selectedDate;
+  String? profilePhotoUrl;
   bool isFormComplete = false;
 
   @override
@@ -277,6 +279,7 @@ class _ProfilePageState extends State<ProfilePage> {
         selectedGender = data['gender'];
         shiftdetailsController.text = data['shiftdetails'];
 
+
         final dateOfBirth = data['dateOfBirth'];
         if (dateOfBirth != null && dateOfBirth.isNotEmpty) {
           selectedDate = DateTime.tryParse(dateOfBirth);
@@ -289,6 +292,7 @@ class _ProfilePageState extends State<ProfilePage> {
         }
 
         isLoading = false;
+        profilePhotoUrl = data['profilePhotoUrl'];
       });
     } else {
       setState(() {
@@ -297,129 +301,145 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  Future<void> pickImage() async {
-    final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery);
-    if (pickedFile != null) {
-      final File image = File(pickedFile.path);
-      setState(() {
-        profileImage = FileImage(image);
-      });
-    }
+Future<void> pickImage() async {
+  final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+  if (pickedFile != null) {
+    final File image = File(pickedFile.path);
+
+    final storageRef = FirebaseStorage.instance.ref().child('profile_photos/${widget.user.uid}');
+    final uploadTask = storageRef.putFile(image);
+    final snapshot = await uploadTask.whenComplete(() {});
+    final downloadUrl = await snapshot.ref.getDownloadURL();
+
+    setState(() {
+      profileImage = FileImage(image);
+      profilePhotoUrl = downloadUrl;
+    });
+  }
+}
+
+Future<void> saveProfileData() async {
+  final userId = widget.user.uid;
+  final name = nameController.text.trim();
+  final role = roleController.text.trim();
+  final department = departmentController.text.trim();
+  final email = emailController.text.trim();
+  final phoneNumber = phoneNumberController.text.trim();
+  final gender = selectedGender ?? ''; // Use selectedGender instead of gender
+  final shiftdetails = shiftdetailsController.text.trim();
+
+  // Form validation check
+  if (name.isEmpty ||
+      role.isEmpty ||
+      department.isEmpty ||
+      email.isEmpty ||
+      phoneNumber.isEmpty ||
+      gender.isEmpty || // Use gender instead of selectedGender
+      selectedDate == null ||
+      shiftdetails.isEmpty) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Incomplete Form'),
+        content: const Text('Please fill in all the fields.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+    setState(() {
+      isFormComplete = false; // Update the flag accordingly
+    });
+    return;
+  } else {
+    setState(() {
+      isFormComplete = true; // Update the flag accordingly
+    });
   }
 
-  Future<void> saveProfileData() async {
-    final userId = widget.user.uid;
-    final name = nameController.text.trim();
-    final role = roleController.text.trim();
-    final department = departmentController.text.trim();
-    final email = emailController.text.trim();
-    final phoneNumber = phoneNumberController.text.trim();
-    final gender = genderController.text.trim();
-    final shiftdetails = shiftdetailsController.text.trim();
-
-    // Form validation check
-    if (name.isEmpty ||
-        role.isEmpty ||
-        department.isEmpty ||
-        email.isEmpty ||
-        phoneNumber.isEmpty ||
-        gender.isEmpty ||
-        selectedDate == null ||
-        shiftdetails.isEmpty) {
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Incomplete Form'),
-          content: const Text('Please fill in all the fields.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('OK'),
-            ),
-          ],
-        ),
-      );
-      return;
-    }
-
-    // Email validation check
-    if (!_isValidEmail(email)) {
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Invalid Email'),
-          content: const Text('Please enter a valid email address.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('OK'),
-            ),
-          ],
-        ),
-      );
-      return;
-    }
-
-    // Phone number validation check
-    if (!validatePhoneNumber(phoneNumber)) {
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Invalid Phone Number'),
-          content: const Text('Please enter a valid 10-digit phone number.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('OK'),
-            ),
-          ],
-        ),
-      );
-      return;
-    }
-
-    try {
-      await FirebaseFirestore.instance.collection('profiles').doc(userId).set({
-        'name': name,
-        'role': role,
-        'department': department,
-        'email': email,
-        'phoneNumber': phoneNumber,
-        'gender': gender,
-        'dateOfBirth': selectedDate!.toIso8601String(),
-        'shiftdetails': shiftdetails,
-      });
-
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Profile Saved'),
-          content: const Text('Your profile has been saved successfully.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('OK'),
-            ),
-          ],
-        ),
-      );
-    } catch (e) {
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Error'),
-          content: const Text('Failed to save profile. Please try again.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('OK'),
-            ),
-          ],
-        ),
-      );
-      print('Error saving profile data: $e');
-    }
+  // Email validation check
+  if (!_isValidEmail(email)) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Invalid Email'),
+        content: const Text('Please enter a valid email address.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+    return;
   }
+
+  // Phone number validation check
+  if (!validatePhoneNumber(phoneNumber)) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Invalid Phone Number'),
+        content: const Text('Please enter a valid 10-digit phone number.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+    return;
+  }
+
+  try {
+    await FirebaseFirestore.instance.collection('profiles').doc(userId).set({
+      'name': name,
+      'role': role,
+      'department': department,
+      'email': email,
+      'phoneNumber': phoneNumber,
+      'gender': gender,
+      'dateOfBirth': selectedDate!.toIso8601String(),
+      'shiftdetails': shiftdetails,
+      'profilePhotoUrl': profilePhotoUrl,
+    });
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Profile Saved'),
+        content: const Text('Your profile has been saved successfully.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  } catch (e) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Error'),
+        content: const Text('Failed to save profile. Please try again.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+    print('Error saving profile data: $e');
+  }
+}
+
 
   Future<void> logout() async {
     await FirebaseAuth.instance.signOut();
@@ -455,6 +475,22 @@ class _ProfilePageState extends State<ProfilePage> {
     return true;
   }
 
+    Future<void> _selectedDate(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: selectedDate ?? DateTime.now(),
+      firstDate: DateTime(1900),
+      lastDate: DateTime.now(),
+    );
+
+    if (picked != null && picked != selectedDate) {
+      setState(() {
+        selectedDate = picked;
+        dateOfBirthController.text = DateFormat('dd-MM-yyyy').format(picked);
+      });
+    }
+  }
+
   List<String> genderOptions = ['Male', 'Female', 'Other'];
   String? selectedGender;
 
@@ -481,10 +517,8 @@ class _ProfilePageState extends State<ProfilePage> {
                     onTap: pickImage,
                     child: CircleAvatar(
                       radius: 80,
-                      backgroundImage: profileImage,
-                      child: profileImage == null
-                          ? const Icon(Icons.person, size: 80)
-                          : null,
+                      backgroundImage: profilePhotoUrl != null ? NetworkImage(profilePhotoUrl!) : null,
+                      child: profilePhotoUrl == null ? const Icon(Icons.person, size: 80) : null,
                     ),
                   ),
                   const SizedBox(height: 16.0),
@@ -582,21 +616,5 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
             ),
     );
-  }
-
-  Future<void> _selectedDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: selectedDate ?? DateTime.now(),
-      firstDate: DateTime(1900),
-      lastDate: DateTime.now(),
-    );
-
-    if (picked != null && picked != selectedDate) {
-      setState(() {
-        selectedDate = picked;
-        dateOfBirthController.text = DateFormat('dd-MM-yyyy').format(picked);
-      });
-    }
   }
 }
